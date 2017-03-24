@@ -1,0 +1,94 @@
+/* Template for CSS: http://codepen.io/CSWApps/pen/GKtvH
+http://stackoverflow.com/questions/27909371/link-button-full-height-of-container-bootstrap
+https://davidwalsh.name/html5-buttons
+*/
+body {
+  background-color: lightblue;
+}
+.container {
+  background-color: #fff;
+  padding: 40px 80px;
+  border-radius: 8px;
+}
+
+.file {
+  visibility: hidden;
+  position: absolute;
+}
+
+h1, h3 {
+  text-align: center;
+}
+
+.btn.btn-primary {
+  background-color: #5c4084;
+  border-color: #5c4084;
+  outline: none;
+}
+
+.image-view {
+  max-height: 100%;
+  max-width: 100%;
+  height: auto;
+  width: auto;
+  flex: 0 1 auto;
+  box-sizing: content-box;
+  border: 4px solid #fff;
+  box-shadow: 0 5px 20px 0 rgba(28,40,56,.24);
+}
+
+a > span.button-single {
+    font-size: 30px;
+    color: #fff;
+    display: block;
+    margin-bottom: 8px;
+    margin-left: 0px;
+}
+/*
+.box a.button {
+    width: 95px;
+    background-color: #99154e;
+    margin-right:-1px;
+    color: #fff;
+    padding-top: 13px;
+    padding-bottom: 13px;
+    font-size: 25px;
+    line-height: 16px;
+    text-align: center;
+    float: right;
+    height: 100%;
+    display: block;
+}*/
+/*
+.box a.button:hover {
+    background-color: #a7a7a7;
+}
+*/
+.box.row{
+ height: 100%;
+
+}
+
+.box a.button {
+  display: block;
+  height: 100%;
+
+  box-sizing: border-box;
+  margin: 0.5rem auto;
+  padding: 0.75rem;
+
+  font-size: 2rem;
+  text-align: center;
+  text-transform: uppercase;
+  color: white;
+
+  background: #99154e;
+  border-radius: 0.5rem;
+
+  outline: none;
+  user-select: none;
+  cursor: pointer;
+}
+.box a.button:hover {
+    text-decoration: none;
+}

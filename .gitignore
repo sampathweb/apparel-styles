@@ -1,0 +1,101 @@
+# Virtual Env
+env/venv
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OSX Filesystem thing
+.DS_Store
+
+# Ignore temp files from other editors
+*~
+.#*
+.*.sw?
+.idea/
+*.dpkg-*
+*.exe
+*.ZILESAVE
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# C extensions
+*.so
+
+# Installer logs
+*.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*,cover
+.hypothesis/
+
+# Translations
+*.mo
+*.pot
+
+# Log Files
+*.log
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# DotEnv configuration
+.env
+
+# Database
+*.db
+*.sqlite
+*.rdb
+
+# Pycharm
+.idea
+
+# Working Files - not ready to be shared
+local/
+
+# IPython NB Checkpoints
+.ipynb_checkpoints/
+
+# Exclude data from source control by default
+data/*
+app/static/temp-img/*
+
+# Exclude Model Pickle Files
+*.pickle
+*.pkl
+*.npy
+*.h5

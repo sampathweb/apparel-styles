@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Classifier App">
+  <meta name="author" content="Ramesh Sampath">
+  <link rel="icon" href="../../favicon.ico">
+
+  <title>Apparel Classifier App</title>
+
+  <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+  <link rel="stylesheet" href="{{ static_url('style.css') }}">
+
+</head>
+<body>
+<h1>Apparel Classifier</h1>
+  <div class="container">
+    <form id="predict-form" action="/" method="post" enctype="multipart/form-data">
+      <div class="row">
+        <div class="col-xs-10">
+          <div class="form-group">
+            <input type="file" name="image-file" class="file">
+            <div class="input-group col-xs-12">
+              <span class="input-group-addon"><i class="glyphicon glyphicon-picture"></i></span>
+              <input type="text" class="form-control input-lg" disabled placeholder="Upload Image">
+              <span class="input-group-btn">
+                <button class="browse btn btn-primary input-lg" type="button"><i class="glyphicon glyphicon-search"></i> Browse</button>
+              </span>
+            </div>
+          </div>
+          <h3>OR</h3>
+          <div class="form-group">
+            <div class="input-group col-xs-12">
+              <input name="image-url" type="text" class="form-control input-lg"  placeholder="Paste Image URL">
+            </div>
+          </div>
+        </div>
+       <div class="box col-sm-2">
+          <br>
+          <a id="predict-submit" href="#" class="button">
+            <span class="button-single glyphicon glyphicon-play"></span> Go!<br/>
+          </a>
+        </div>
+      </div>
+    </form>
+    <hr/>
+    <div class="row">
+      <div class="col-sm-6">
+        {% if image %}
+          <img class="image-view" src="/static/temp-img/{{image}}">
+        {% elif image_url %}
+          <img class="image-view" src="{{image_url}}"%>
+        {% end %}
+      </div>
+      <div class="col-sm-6">
+        {% if results %}
+          <pre id="results"></pre>
+        {% end %}
+      </div>
+    </div>
+
+  </div>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+  <script type="text/javascript" src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+  <script type="text/javascript">
+    $(document).on('click', '.browse', function(){
+      var file = $(this).parent().parent().parent().find('.file');
+      file.trigger('click');
+    });
+    $(document).on('change', '.file', function(){
+      $(this).parent().find('.form-control').val($(this).val().replace(/C:\\fakepath\\/i, ''));
+    });
+  var results = {% raw results %};
+  if (results) {
+    document.getElementById("results").innerHTML = JSON.stringify(results, undefined, 2);
+  }
+  $("#predict-submit").click(function() {
+      document.getElementById('predict-form').submit();
+  })
+  </script>
+</body>
+</html>

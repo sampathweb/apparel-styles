@@ -1,0 +1,7 @@
+# conda create -p ./env python=3 --yes
+# source activate env
+# conda install -p ./env --file requirements_conda.txt --yes
+tornado>=4.4
+scikit-learn>=0.17
+requests>=2.10
+jupyter>=1.0
