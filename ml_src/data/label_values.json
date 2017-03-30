@@ -1,4 +1,16 @@
 {
+    "attribute_counts": {
+        "category_GT": 7,
+        "sleevelength_GT": 3,
+        "neckline_GT": 3,
+        "pattern_GT": 7,
+        "skin_exposure_GT": 2,
+        "collar_GT": 2,
+        "gender_GT": 2,
+        "scarf_GT": 2,
+        "necktie_GT": 2,
+        "placket_GT": 2
+    },
     "idx_to_names": {
         "sleevelength_GT": {
             "0": "No sleeves",
@@ -15,7 +27,7 @@
         },
         "category_GT": {
             "0": "Shirt",
-            "1": "Sweater", 
+            "1": "Sweater",
             "2": "T-shirt",
             "3": "Outerwear",
             "4": "Suit",
@@ -29,13 +41,13 @@
         }
     },
     "values_to_idx": {
-        "pattern_GT": {  
-            "pattern_floral_GT": "0",
-            "pattern_graphics_GT": "1",
-            "pattern_plaid_GT": "2",
-            "pattern_stripe_GT": "3",
-            "pattern_solid_GT": "4",
-            "pattern_spot_GT": "5"
-      }   
+        "pattern_GT": {
+            "pattern_floral_GT": 0,
+            "pattern_graphics_GT": 1,
+            "pattern_plaid_GT": 2,
+            "pattern_stripe_GT": 3,
+            "pattern_solid_GT": 4,
+            "pattern_spot_GT": 5
+      }
     }
 }
