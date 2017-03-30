@@ -1,0 +1,41 @@
+{
+    "idx_to_names": {
+        "sleevelength_GT": {
+            "0": "No sleeves",
+            "1": "Short sleeves",
+            "2": "Long sleeves"
+        },
+        "pattern_GT": {
+            "0": "Floral",
+            "1": "Graphics",
+            "2": "Plaid",
+            "3": "Stripe",
+            "4": "Solid",
+            "5": "Spot"
+        },
+        "category_GT": {
+            "0": "Shirt",
+            "1": "Sweater", 
+            "2": "T-shirt",
+            "3": "Outerwear",
+            "4": "Suit",
+            "5": "Tank Top",
+            "6": "Dress"
+        },
+        "neckline_GT": {
+            "0": "V-shape",
+            "1": "Round",
+            "2": "Other shapes"
+        }
+    },
+    "values_to_idx": {
+        "pattern_GT": {  
+            "pattern_floral_GT": "0",
+            "pattern_graphics_GT": "1",
+            "pattern_plaid_GT": "2",
+            "pattern_stripe_GT": "3",
+            "pattern_solid_GT": "4",
+            "pattern_spot_GT": "5"
+      }   
+    }
+}

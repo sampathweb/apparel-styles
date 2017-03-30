@@ -190,7 +190,7 @@ def create_attributes_model(pretrained_features, pretrained_fc, fc_dim, target_c
                             batch_size=32, num_workers=4, num_epochs=10):
     models = {}
     for col_name, col_dim in target_columns.items():
-        weights_path = os.path.join(weights_root, col_name + ".path")
+        weights_path = os.path.join(weights_root, col_name + ".pth")
         load_weights_path = None
         if os.path.exists(weights_path):
             load_weights_path = weights_path
