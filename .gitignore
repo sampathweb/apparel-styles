@@ -92,7 +92,10 @@ local/
 
 # Exclude data from source control by default
 data/*
+ml_src/data/*
+ml_src/weights/*
 app/static/temp-img/*
+weights/*
 
 # Exclude Model Pickle Files
 *.pickle
