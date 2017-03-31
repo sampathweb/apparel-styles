@@ -110,6 +110,7 @@ def train_attribute_model(model, pretrained_model, train_dset_loader,
                 out_features = out_features.view(out_features.size(0), -1)
 
                 # Forward
+                print_out
                 outputs = model(out_features)
                 _, preds = torch.max(outputs.data, 1)
                 loss = criterion(outputs, labels)
@@ -185,11 +186,12 @@ def save_model(model, weights_path):
     torch.save(model.state_dict(), weights_path)
     
     
-def create_attributes_model(pretrained_features, pretrained_fc, fc_dim, target_columns, weights_root, 
+def create_attributes_model(pretrained_fc, pretrained_features, fc_dim, target_columns, weights_root, 
                             labels_file, train_images_folder, valid_images_folder=None, is_train=True,
                             batch_size=32, num_workers=4, num_epochs=10):
     models = {}
     for col_name, col_dim in target_columns.items():
+        print("Processing Attribute: {}".format(col_name))
         weights_path = os.path.join(weights_root, col_name + ".pth")
         load_weights_path = None
         if os.path.exists(weights_path):
@@ -204,19 +206,19 @@ def create_attributes_model(pretrained_features, pretrained_fc, fc_dim, target_c
     return models
 
 
-def visualize_model(model, num_images=5):
-    for i, data in enumerate(dset_loaders['val']):
+def visualize_model(model, dset_loader, num_images=5, use_gpu=True):
+    for i, data in enumerate(dset_loader):
         inputs, labels = data
         if use_gpu:
             inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
         else:
             inputs, labels = Variable(inputs), Variable(labels)
 
-
         outputs = model(inputs)
         _, preds = torch.max(outputs.data, 1)
 
         plt.figure()
+        
         imshow(inputs.cpu().data[0])
         plt.title('pred: {}'.format(dset_classes[labels.data[0]]))
         plt.show()

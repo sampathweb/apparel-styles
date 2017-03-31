@@ -74,6 +74,10 @@ def load_label_values(label_values_file):
         
     return label_values
 
+def get_attribute_dims(label_values_file):
+    label_values = load_label_values(label_values_file)
+    return label_values["attribute_dims"]
+
 def combine_labels(LABEL_DIR, labels_file, label_values_file, na_value=None, combine_pattern_cols=True):
     dfs = []
     for label_file in glob(os.path.join(LABEL_DIR, "*.mat")):

@@ -1,15 +1,15 @@
 {
-    "attribute_counts": {
+    "attribute_dims": {
         "category_GT": 7,
         "sleevelength_GT": 3,
         "neckline_GT": 3,
-        "pattern_GT": 7,
+        "pattern_GT": 6,
         "skin_exposure_GT": 2,
         "collar_GT": 2,
         "gender_GT": 2,
         "scarf_GT": 2,
         "necktie_GT": 2,
-        "placket_GT": 2
+        "placket_GT": 2 
     },
     "idx_to_names": {
         "sleevelength_GT": {
