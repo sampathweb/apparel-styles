@@ -9,6 +9,8 @@ import numpy as np
 import scipy.io
 import pandas as pd
 
+import torch
+from torch.autograd import Variable
 from torchvision import transforms
 
 
@@ -77,6 +79,9 @@ def load_label_values(label_values_file):
 def get_attribute_dims(label_values_file):
     label_values = load_label_values(label_values_file)
     return label_values["attribute_dims"]
+
+def get_label_idx_to_name(label_values, attribute_name, label_idx):
+    return label_values["idx_to_names"][attribute_name][label_dx]
 
 def combine_labels(LABEL_DIR, labels_file, label_values_file, na_value=None, combine_pattern_cols=True):
     dfs = []
@@ -157,11 +162,7 @@ class AttributeDataset(data.Dataset):
         return len(self.imgs)
 
 
-def make_dsets(IMAGES_FOLDER, LABELS_FILE, target_column, batch_size=32, num_workers=4, 
-               is_train=True, shuffle=True):
-    
-    # Data Augmentation and Normalization
-    
+def get_transforms(is_train=False):
     if is_train:
         data_transforms = transforms.Compose([
             transforms.Scale(266),
@@ -177,6 +178,14 @@ def make_dsets(IMAGES_FOLDER, LABELS_FILE, target_column, batch_size=32, num_wor
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
+    return data_transforms
+
+
+def make_dsets(IMAGES_FOLDER, LABELS_FILE, target_column, batch_size=32, num_workers=4, 
+               is_train=True, shuffle=True):
+    
+    # Data Augmentation and Normalization
+    data_transforms = get_transforms(is_train)
 
     labels_df = get_labels(LABELS_FILE)
     dset = AttributeDataset(IMAGES_FOLDER, labels_df, target_column=target_column,
@@ -185,3 +194,19 @@ def make_dsets(IMAGES_FOLDER, LABELS_FILE, target_column, batch_size=32, num_wor
     dset_loader = data.DataLoader(dset, batch_size=batch_size,
                                             shuffle=shuffle, num_workers=num_workers)
     return dset_loader
+
+
+def image_loader(image_name, transforms=None, use_gpu=None):
+    """load image, returns cuda tensor"""
+    if transforms is None:
+        transforms = get_transforms(is_train=False)
+    if use_gpu is None:
+        use_gpu = torch.cuda.is_available()
+        
+    image = Image.open(image_name)
+    image = transforms(image)
+    image = Variable(image, requires_grad=True)
+    image = image.unsqueeze(0)  # Add a top level dimension for Batches
+    if use_gpu:
+        image = image.cuda()
+    return image

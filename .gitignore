@@ -95,6 +95,7 @@ data/*
 ml_src/data/ClothingAttributeDataset/
 ml_src/weights/*.pth
 app/static/temp-img/*
+app/static/select-img/*.jpg
 
 # Exclude Model Pickle Files
 *.pickle

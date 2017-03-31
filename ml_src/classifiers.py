@@ -11,7 +11,7 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import torchvision
 
-from preprocessing import make_dsets
+from .preprocessing import make_dsets, get_label_idx_to_name, image_loader
 
 
 def get_pretrained_model(arch="resnet18", top_layer=False):
@@ -37,10 +37,10 @@ def get_pretrained_model(arch="resnet18", top_layer=False):
 
 def optim_scheduler_ft(model, epoch, init_lr=0.001, lr_decay_epoch=7):
     lr = init_lr * (0.1**(epoch//lr_decay_epoch))
-    
+
     if epoch % lr_decay_epoch == 0:
         print("LR is set to {}".format(lr))
-        
+
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
     return optimizer
 
@@ -55,16 +55,19 @@ class AttributeModel(nn.Module):
         return F.softmax(self.model(x))
 
 
-def train_attribute_model(model, pretrained_model, train_dset_loader, 
+def train_attribute_model(model, pretrained_model, train_dset_loader,
                           valid_dset_loader=None,
                           criterion=nn.CrossEntropyLoss(),
                           optim_scheduler=optim_scheduler_ft,
-                          use_gpu=True,
+                          use_gpu=None,
                           num_epochs=25):
     since = time.time()
     best_model = model
     best_acc = 0.0
-    
+
+    if use_gpu is None:
+        use_gpu = torch.cuda.is_available()
+
     # Define Phases and Get the dataset Sizes
     phases = ["train"]
     dset_sizes = {
@@ -73,38 +76,38 @@ def train_attribute_model(model, pretrained_model, train_dset_loader,
     if valid_dset_loader is not None:
         phases.append("valid")
         dset_sizes["valid"] =  len(valid_dset_loader.dataset)
-    
+
     if use_gpu:
         pretrained_model.cuda()
         model.cuda()
-    
+
     for epoch in range(num_epochs):
         print("Epoch {}/{}".format(epoch, num_epochs - 1))
-        
+
         # Each epoch has a train and validation Phase
         for phase in phases:
             if phase == "train":
                 optimizer = optim_scheduler(model, epoch)
-            
+
             running_loss = 0.0
             running_corrects = 0.0
-            
+
             # Iterate over data
             dset_loader = valid_dset_loader if phase == "valid" else train_dset_loader
             for data in dset_loader:
                 # Get the inputs
                 inputs, labels = data
-            
+
                 # Wrap them in Variable
                 if use_gpu:
                     inputs, labels = Variable(inputs.cuda()), \
                                              Variable(labels.cuda())
                 else:
                     inputs, labels = Variable(inputs), Variable(labels)
-                
+
                 # Zero the parameter gradients
                 optimizer.zero_grad()
-                
+
                 # Get output from pre-trained model and re-shape to Flatten
                 out_features = pretrained_model(inputs)
                 out_features = out_features.view(out_features.size(0), -1)
@@ -114,26 +117,26 @@ def train_attribute_model(model, pretrained_model, train_dset_loader,
                 outputs = model(out_features)
                 _, preds = torch.max(outputs.data, 1)
                 loss = criterion(outputs, labels)
-                
+
                 # Backward + Optimize only in Training Phase
                 if phase == "train":
                     loss.backward()
                     optimizer.step()
-                    
+
                 # Statistics
                 running_loss += loss.data[0]
                 running_corrects += torch.sum(preds == labels.data)
-                
+
             epoch_loss = running_loss / dset_sizes[phase]
             epoch_acc = running_corrects / dset_sizes[phase]
-            
+
             print("{} Loss: {:.4f} Acc: {:.4f}".format(phase, epoch_loss, epoch_acc))
-            
+
             # Deep copy the model
             if phase == "valid" and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model = copy.deepcopy(model)
-                
+
     time_elapsed = time.time() - since
     print("Training completed in {:0f}m {:0f}s".format(
         time_elapsed // 60, time_elapsed % 60))
@@ -167,26 +170,47 @@ def load_model(pretrained_fc, fc_dim, output_dim, weights_path=None):
 def train_model(model, pretrained_features, target_column, labels_file, train_images_folder, valid_images_folder=None,
                      batch_size=32, num_workers=4, num_epochs=10):
 
-    train_dset_loader = make_dsets(train_images_folder, labels_file, target_column, 
+    train_dset_loader = make_dsets(train_images_folder, labels_file, target_column,
                                    batch_size=batch_size, num_workers=num_workers, is_train=True)
     valid_dset_loader = None
     if valid_images_folder:
-        valid_dset_loader = make_dsets(valid_images_folder, labels_file, target_column, 
+        valid_dset_loader = make_dsets(valid_images_folder, labels_file, target_column,
                                 batch_size=batch_size, num_workers=num_workers, is_train=False)
 
     # Sleeve Length Model
-    model = train_attribute_model(model, pretrained_features, 
-                                train_dset_loader=train_dset_loader, 
-                                valid_dset_loader=valid_dset_loader, 
+    model = train_attribute_model(model, pretrained_features,
+                                train_dset_loader=train_dset_loader,
+                                valid_dset_loader=valid_dset_loader,
                                 num_epochs=num_epochs)
     return model
 
 
 def save_model(model, weights_path):
     torch.save(model.state_dict(), weights_path)
-    
-    
-def create_attributes_model(pretrained_fc, pretrained_features, fc_dim, target_columns, weights_root, 
+
+
+def predict_model(model, inputs, flatten=False):
+    outputs = model(inputs)
+    if flatten:
+        outputs = outputs.view(outputs.size(0), -1)
+    return outputs
+
+
+def predict_attributes(image_url, pretrained_model, attribute_models, attribute_idx_map=None):
+    image_features = image_loader(image_url)
+    pretrained_features = predict_model(pretrained_model, image_features, flatten=True)
+    results = {}
+    for attrib_name, model in attribute_models.items():
+        outputs = predict_model(model, pretrained_features)
+        outputs_arr = outputs.data.numpy()
+        pred_prob, pred_class = outputs_arr.max(), outputs_arr.argmax()
+        if attribute_idx_map:
+            pred_class = attribute_idx_map[attrib_name].get(pred_class)
+        if pred_class is not None:
+            results[attrib_name] = (pred_class, pred_prob)
+    return results
+
+def create_attributes_model(pretrained_fc, pretrained_features, fc_dim, target_columns, weights_root,
                             labels_file, train_images_folder, valid_images_folder=None, is_train=True,
                             batch_size=32, num_workers=4, num_epochs=10):
     models = {}
@@ -206,7 +230,10 @@ def create_attributes_model(pretrained_fc, pretrained_features, fc_dim, target_c
     return models
 
 
-def visualize_model(model, dset_loader, num_images=5, use_gpu=True):
+def visualize_model(model, dset_loader, num_images=5, use_gpu=None):
+    if use_gpu is None:
+        use_gpu = torch.cuda.is_available()
+
     for i, data in enumerate(dset_loader):
         inputs, labels = data
         if use_gpu:
@@ -218,7 +245,7 @@ def visualize_model(model, dset_loader, num_images=5, use_gpu=True):
         _, preds = torch.max(outputs.data, 1)
 
         plt.figure()
-        
+
         imshow(inputs.cpu().data[0])
         plt.title('pred: {}'.format(dset_classes[labels.data[0]]))
         plt.show()

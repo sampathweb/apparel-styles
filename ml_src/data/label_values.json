@@ -9,9 +9,33 @@
         "gender_GT": 2,
         "scarf_GT": 2,
         "necktie_GT": 2,
-        "placket_GT": 2 
+        "placket_GT": 2
     },
     "idx_to_names": {
+        "collar_GT": {
+            "0": null,
+            "1": "Has Collar"
+        },
+        "gender_GT": {
+            "0": "Is Female",
+            "1": "Is Male"
+        },
+        "necktie_GT": {
+            "0": null,
+            "1": "Wears Necktie"
+        },
+        "placket_GT": {
+            "0": null,
+            "1": "Has Placket"
+        },
+        "scarf_GT": {
+            "0": null,
+            "1": "Wears Scarf"
+        },
+        "skin_exposure_GT": {
+            "0": null,
+            "1": "sees high skin exposure"
+        },
         "sleevelength_GT": {
             "0": "No sleeves",
             "1": "Short sleeves",

@@ -43,12 +43,22 @@
           </a>
         </div>
       </div>
+      <div class="row">
+        <input name="image-select" type="hidden" value="">
+        {% for select_img in select_images %}
+          <a class="select-img" href="">
+            <figure>
+              <img src="/static/images/{{select_img}}" alt="">
+            </figure>
+          </a>
+        {% end %}
+      </div>
     </form>
     <hr/>
     <div class="row">
       <div class="col-sm-6">
         {% if image %}
-          <img class="image-view" src="/static/temp-img/{{image}}">
+          <img class="image-view" src="/static/{{image_location}}/{{image}}">
         {% elif image_url %}
           <img class="image-view" src="{{image_url}}"%>
         {% end %}
@@ -78,6 +88,12 @@
   $("#predict-submit").click(function() {
       document.getElementById('predict-form').submit();
   })
+  $('a.select-img img').click(function(e){
+      $('.selected').removeClass('selected');
+      $(this).addClass('selected');
+      $('input[name=image-select]').val($(this).attr("src"));
+      e.preventDefault();
+  });
   </script>
 </body>
 </html>
