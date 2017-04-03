@@ -14,7 +14,7 @@ from app.base_handler import BaseApiHandler
 from app.settings import MAX_MODEL_THREAD_POOL
 
 from ml_src.preprocessing import get_attribute_dims, load_label_values
-from ml_src.classifiers import get_pretrained_model, create_attributes_model, AttributeFCN
+from ml_src.classifiers import get_pretrained_model, create_attributes_fc_model, AttributeFCN
 from ml_src.classifiers import predict_attributes
 from ml_src.utils import is_gpu_available
 
@@ -27,17 +27,16 @@ label_values_file = "ml_src/data/label_values.json"
 use_gpu = is_gpu_available()
 target_dims = get_attribute_dims(label_values_file)
 label_values = load_label_values(label_values_file)
-pretrained_conv_model, pretrained_fc, fc_dim = get_pretrained_model("alexnet")
-pretrained_conv_model, _, _ = get_pretrained_model("vgg16", pop_last_pool_layer=True)
-attribute_models = create_attributes_model(AttributeFCN, 512, pretrained_conv_model,
-                                target_dims,
-                                "ml_src/weights/vgg16-fcn-models/",
-                                labels_file,
-                                 TRAIN_IMAGES_FOLDER,
-                                 VALID_IMAGES_FOLDER,
-                                 num_epochs=25,
-                                 is_train=False,
-                                 use_gpu=use_gpu)
+
+pretrained_conv_model, alexnet_fc, fc_dim  = get_pretrained_model("alexnet", use_gpu=use_gpu)
+attribute_models = create_attributes_fc_model(alexnet_fc, pretrained_conv_model, fc_dim, 
+                                target_dims, "ml_src/weights/alexnet-fc/",
+                                labels_file, 
+                                TRAIN_IMAGES_FOLDER, 
+                                VALID_IMAGES_FOLDER, 
+                                num_epochs=1, 
+                                use_gpu=use_gpu,
+                                is_train=False)
 
 
 class IndexHandler(tornado.web.RequestHandler):
@@ -88,9 +87,10 @@ class IndexHandler(tornado.web.RequestHandler):
         else:
             return self.redirect("/")
 
+        print(image)
         results = predict_attributes(image, pretrained_conv_model, attribute_models,
                              attribute_idx_map=label_values["idx_to_names"],
-                            flatten_pretrained_out=False,
+                            flatten_pretrained_out=True,
                             use_gpu=use_gpu)
         results = [{k: (v1, str(round(v2, 1)) + "%") for k, (v1, v2) in results.items()}]
         print(results)

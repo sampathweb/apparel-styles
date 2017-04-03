@@ -166,6 +166,7 @@ def get_transforms(is_train=False):
     if is_train:
         data_transforms = transforms.Compose([
             transforms.Scale(266),
+            # transforms.CenterCrop((400, 266)),
             transforms.RandomSizedCrop(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
@@ -174,6 +175,7 @@ def get_transforms(is_train=False):
     else:
         data_transforms = transforms.Compose([
             transforms.Scale(266),
+            # transforms.CenterCrop((400, 266)),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])

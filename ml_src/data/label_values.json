@@ -17,8 +17,8 @@
             "1": "Has Collar"
         },
         "gender_GT": {
-            "0": "Is Female",
-            "1": "Is Male"
+            "0": "Is Male",
+            "1": "Is Female"
         },
         "necktie_GT": {
             "0": null,

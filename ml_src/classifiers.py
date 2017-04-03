@@ -11,10 +11,13 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import torchvision
 
-from preprocessing import make_dsets, get_label_idx_to_name, image_loader
+try:
+    from ml_src.preprocessing import make_dsets, get_label_idx_to_name, image_loader
+except ImportError:
+    from preprocessing import make_dsets, get_label_idx_to_name, image_loader
 
 
-def get_pretrained_model(arch="resnet18", pop_last_pool_layer=False):
+def get_pretrained_model(arch="resnet18", pop_last_pool_layer=False, use_gpu=False):
     if arch == "resnet18":
         resnet = torchvision.models.resnet18(pretrained=True)
         pretrained_features = nn.Sequential(*list(resnet.children())[:-1])
@@ -34,10 +37,12 @@ def get_pretrained_model(arch="resnet18", pop_last_pool_layer=False):
         pretrained_features = nn.Sequential(*list(pretrained_features.children())[:-1])
     for param in pretrained_features.parameters():
         param.requires_grad = False
+    if use_gpu:
+        pretrained_features = pretrained_features.cuda()
     return pretrained_features, pretrained_fc, fc_dim
 
 
-def optim_scheduler_ft(model, epoch, init_lr=0.001, lr_decay_epoch=7):
+def optim_scheduler_ft(model, epoch, init_lr=0.01, lr_decay_epoch=7):
     lr = init_lr * (0.1**(epoch//lr_decay_epoch))
 
     if epoch % lr_decay_epoch == 0:
@@ -73,6 +78,10 @@ class AttributeFCN(nn.Module):
             nn.BatchNorm2d(64),
             nn.Conv2d(64, out_dims, 1)
         ]
+        model_steps_dummy = [
+            nn.BatchNorm2d(in_channels),
+            nn.Conv2d(in_channels, out_dims, 1)
+        ]
         self.conv_model = nn.Sequential(*model_steps)
 
     def forward(self, x):
@@ -81,8 +90,9 @@ class AttributeFCN(nn.Module):
         
         # Do Global Average Pooling on the Conv Layer with Number of Channels = Classes
         pool_size = (classes_conv_out.size(2), classes_conv_out.size(3))
-        average_pool = F.avg_pool2d(classes_conv_out, pool_size)
+        average_pool = F.avg_pool2d(classes_conv_out, kernel_size=classes_conv_out.size()[2:])
         average_pool_flatten = average_pool.view(average_pool.size(0), -1)
+        # print(average_pool_flatten)
         classes_softmax = F.softmax(average_pool_flatten)
         
         if self.return_conv_layer:
@@ -93,10 +103,12 @@ class AttributeFCN(nn.Module):
 
 def train_attribute_model(model, pretrained_model, train_dset_loader,
                           valid_dset_loader=None,
-                          criterion=nn.CrossEntropyLoss(),
+                          criterion=nn.NLLLoss(),  # nn.CrossEntropyLoss(),
                           optim_scheduler=optim_scheduler_ft,
                           use_gpu=None,
-                          num_epochs=25, flatten_pretrained_out=False):
+                          num_epochs=25, 
+                          verbose=False,
+                          flatten_pretrained_out=False):
     since = time.time()
     best_model = model
     best_acc = 0.0
@@ -118,7 +130,8 @@ def train_attribute_model(model, pretrained_model, train_dset_loader,
         model.cuda()
 
     for epoch in range(num_epochs):
-        print("Epoch {}/{}".format(epoch, num_epochs - 1))
+        if verbose:
+            print("Epoch {}/{}".format(epoch, num_epochs - 1))
 
         # Each epoch has a train and validation Phase
         for phase in phases:
@@ -165,8 +178,10 @@ def train_attribute_model(model, pretrained_model, train_dset_loader,
 
             epoch_loss = running_loss / dset_sizes[phase]
             epoch_acc = running_corrects / dset_sizes[phase]
-
-            print("{} Loss: {:.4f} Acc: {:.4f}".format(phase, epoch_loss, epoch_acc))
+            if verbose:
+                print("{} Loss: {:.4f} Acc: {:.4f}".format(phase, epoch_loss, epoch_acc))
+            elif epoch % 5 == 0:
+                print("{} Epoch {}/{} Loss: {:.4f} Acc: {:.4f}".format(phase, epoch, num_epochs - 1, epoch_loss, epoch_acc))
 
             # Deep copy the model
             if phase == "valid" and epoch_acc > best_acc:
@@ -196,22 +211,27 @@ def accuracy(output, target, topk=(1,)):
     return res
 
 
-def load_model(ModelClass, in_channels, output_dim, weights_path=None, return_conv_layer=False):
+def load_model(ModelClass, in_channels, output_dim, weights_path=None, return_conv_layer=False, use_gpu=None):
     model = ModelClass(in_channels, output_dim, return_conv_layer)
     if weights_path:
         model.load_state_dict(torch.load(weights_path))
+    if use_gpu:
+        model = model.cuda()
     return model
 
-def load_fc_model(pretrained_fc, fc_dim, output_dim, weights_path=None):
+def load_fc_model(pretrained_fc, fc_dim, output_dim, weights_path=None, use_gpu=None):
     model = AttributeModel(pretrained_fc, fc_dim, output_dim)
     if weights_path:
         model.load_state_dict(torch.load(weights_path))
+    if use_gpu:
+        model = model.cuda()
     return model
 
 
 def train_model(model, pretrained_features, target_column, labels_file, train_images_folder,
                 valid_images_folder=None,
                 batch_size=32, num_workers=4, num_epochs=10, 
+                use_gpu=None,
                 flatten_pretrained_out=False):
 
     train_dset_loader = make_dsets(train_images_folder, labels_file, target_column,
@@ -226,6 +246,7 @@ def train_model(model, pretrained_features, target_column, labels_file, train_im
                                 train_dset_loader=train_dset_loader,
                                 valid_dset_loader=valid_dset_loader,
                                 num_epochs=num_epochs, 
+                                use_gpu=use_gpu,
                                 flatten_pretrained_out=flatten_pretrained_out)
     return model
 
@@ -241,13 +262,22 @@ def predict_model(model, inputs, flatten=False):
     return outputs
 
 
-def predict_attributes(image_url, pretrained_model, attribute_models, attribute_idx_map=None):
-    image_features = image_loader(image_url)
-    pretrained_features = predict_model(pretrained_model, image_features, flatten=True)
+def predict_attributes(image_url, pretrained_model, attribute_models, attribute_idx_map=None, 
+                       flatten_pretrained_out=True, use_gpu=None):
+
+    if use_gpu is None:
+        use_gpu = torch.cuda.is_available()
+    
+    image_features = image_loader(image_url, use_gpu=use_gpu)
+
+    pretrained_features = predict_model(pretrained_model, image_features, flatten=flatten_pretrained_out)
     results = {}
     for attrib_name, model in attribute_models.items():
+        print("Predicting {}".format(attrib_name))
         outputs = predict_model(model, pretrained_features)
-        outputs_arr = outputs.data.numpy()
+        if use_gpu:
+            outputs_arr = outputs.data.cpu()
+        outputs_arr = outputs_arr.numpy()
         pred_prob, pred_class = outputs_arr.max(), outputs_arr.argmax()
         if attribute_idx_map:
             pred_class = attribute_idx_map[attrib_name].get(pred_class)
@@ -257,7 +287,7 @@ def predict_attributes(image_url, pretrained_model, attribute_models, attribute_
 
 def create_attributes_fc_model(pretrained_fc, pretrained_features, fc_dim, target_columns, weights_root,
                             labels_file, train_images_folder, valid_images_folder=None, is_train=True,
-                            batch_size=32, num_workers=4, num_epochs=10):
+                            batch_size=32, num_workers=4, num_epochs=10,  use_gpu=None):
     models = {}
     for col_name, col_dim in target_columns.items():
         print("Processing Attribute: {}".format(col_name))
@@ -265,12 +295,13 @@ def create_attributes_fc_model(pretrained_fc, pretrained_features, fc_dim, targe
         load_weights_path = None
         if os.path.exists(weights_path):
             load_weights_path = weights_path
-        model = load_fc_model(pretrained_fc, fc_dim, col_dim, weights_path=load_weights_path)
+        model = load_fc_model(pretrained_fc, fc_dim, col_dim, weights_path=load_weights_path, use_gpu=use_gpu)
         if is_train:
             print("Start Training for: {}".format(col_name))
             model = train_model(model, pretrained_features, col_name, labels_file, train_images_folder,
                                 valid_images_folder,
                                 batch_size, num_workers, num_epochs,
+                                use_gpu=use_gpu,
                                flatten_pretrained_out=True)
         save_model(model, weights_path)
         models[col_name] = model
@@ -279,7 +310,7 @@ def create_attributes_fc_model(pretrained_fc, pretrained_features, fc_dim, targe
 
 def create_attributes_model(ModelClass, in_dims, pretrained_features, target_columns, weights_root,
                             labels_file, train_images_folder, valid_images_folder=None, is_train=True,
-                            batch_size=32, num_workers=4, num_epochs=10):
+                            batch_size=32, num_workers=4, num_epochs=10, use_gpu=None):
     models = {}
     for col_name, col_dim in target_columns.items():
         print("Processing Attribute: {}".format(col_name))
@@ -287,11 +318,11 @@ def create_attributes_model(ModelClass, in_dims, pretrained_features, target_col
         load_weights_path = None
         if os.path.exists(weights_path):
             load_weights_path = weights_path
-        model = load_model(ModelClass, in_dims, col_dim, weights_path=load_weights_path)
+        model = load_model(ModelClass, in_dims, col_dim, weights_path=load_weights_path, use_gpu=use_gpu)
         if is_train:
             print("Start Training for: {}".format(col_name))
             model = train_model(model, pretrained_features, col_name, labels_file, train_images_folder, valid_images_folder,
-                               batch_size, num_workers, num_epochs)
+                               batch_size, num_workers, num_epochs, use_gpu=use_gpu)
         save_model(model, weights_path)
         models[col_name] = model
     return models
