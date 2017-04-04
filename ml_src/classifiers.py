@@ -66,20 +66,20 @@ class AttributeFCN(nn.Module):
         super().__init__()
         self.return_conv_layer = return_conv_layer
         model_steps = [
-            nn.BatchNorm2d(in_channels),
+            # nn.BatchNorm2d(in_channels),
             nn.Conv2d(in_channels, 256, 3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(256),
-            nn.Conv2d(256, 128, 3, padding=1),
+            # nn.BatchNorm2d(256),
+            # nn.Conv2d(256, 128, 3, padding=1),
+            # nn.ReLU(),
+            # nn.BatchNorm2d(128),
+            nn.Conv2d(256, 64, 3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm2d(128),
-            nn.Conv2d(128, 64, 3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm2d(64),
+            # nn.BatchNorm2d(64),
             nn.Conv2d(64, out_dims, 1)
         ]
         model_steps_dummy = [
-            nn.BatchNorm2d(in_channels),
+            # nn.BatchNorm2d(in_channels),
             nn.Conv2d(in_channels, out_dims, 1)
         ]
         self.conv_model = nn.Sequential(*model_steps)

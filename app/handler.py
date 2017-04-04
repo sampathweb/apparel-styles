@@ -4,6 +4,7 @@ import json
 from glob import glob
 import numpy as np
 import requests
+import pandas as pd
 
 import tornado.web
 from tornado import concurrent
@@ -50,7 +51,7 @@ class IndexHandler(tornado.web.RequestHandler):
         """Return Index Page"""
         select_images = self._get_rand_images()
         self.render("templates/index.html", image=None, image_url=None,
-            select_images=select_images, results=json.dumps(""))
+            select_images=select_images, results=json.dumps(""), predictions_df=None)
 
     def head(self):
         """Verify that App is live"""
@@ -93,6 +94,9 @@ class IndexHandler(tornado.web.RequestHandler):
                             flatten_pretrained_out=True,
                             use_gpu=use_gpu)
         results = [{k: (v1, str(round(v2, 1)) + "%") for k, (v1, v2) in results.items()}]
+        df = pd.DataFrame(results[0]).T
+        df.columns = ["Prediction", "Probability"]
+        df.index = df.index.str.replace("_GT", "").str.capitalize()
         print(results)
         print(json.dumps(results))
         select_images = self._get_rand_images()
@@ -101,7 +105,8 @@ class IndexHandler(tornado.web.RequestHandler):
             image_location=image_location,
             image_url=image_url,
             select_images=select_images,
-            results=json.dumps(results))
+            results=json.dumps(results),
+            predictions_df=df.to_html(classes="table table-striped"))
 
 
 class PredictionHandler(BaseApiHandler):

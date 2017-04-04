@@ -101,6 +101,7 @@ a.select-img {
   margin-bottom: 8px;
   width: calc(50% - 4px);
   margin-right: 8px;
+  max-height: 400px;
 }
 
 a:nth-of-type(2n) {
