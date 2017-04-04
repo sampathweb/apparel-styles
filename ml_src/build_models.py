@@ -27,10 +27,10 @@ if __name__ == "__main__":
     attribute_models = create_attributes_model(AttributeFCN, 512, pretrained_conv_model,
                                     target_dims, 
     #                                 dict(list(target_dims.items())[:3]),
-                                    "weights/vgg16-fcn-4/",
+                                    "weights/vgg16-fcn-266-2/",
                                     labels_file, 
                                      TRAIN_IMAGES_FOLDER, 
                                      VALID_IMAGES_FOLDER, 
-                                     num_epochs=25,
+                                     num_epochs=50,
                                      is_train=True,
                                      use_gpu=use_gpu)

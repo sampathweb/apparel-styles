@@ -99,9 +99,9 @@ a.select-img {
   overflow: hidden;
   display: inline-block;
   margin-bottom: 8px;
-  width: calc(50% - 4px);
+  width: 100px; /* calc(50% - 4px); */
   margin-right: 8px;
-  max-height: 400px;
+  max-height: 200px;
 }
 
 a:nth-of-type(2n) {
@@ -110,7 +110,7 @@ a:nth-of-type(2n) {
 
 @media screen and (min-width: 50em) {
   a.select-img {
-    width: calc(20% - 6px);
+    /* width: calc(20% - 6px); */
   }
 
   a.select-img:nth-of-type(2n) {
@@ -132,7 +132,7 @@ figure {
 
 a.select-img img {
   /*border: none;*/
-  max-width: 100%;
+ width: 100px; /*  max-width: 100%; */
   height: auto;
   display: block;
   background: #ccc;

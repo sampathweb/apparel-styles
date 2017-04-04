@@ -15,9 +15,10 @@ from app.base_handler import BaseApiHandler
 from app.settings import MAX_MODEL_THREAD_POOL
 
 from ml_src.preprocessing import get_attribute_dims, load_label_values
-from ml_src.classifiers import get_pretrained_model, create_attributes_fc_model, AttributeFCN
+from ml_src.classifiers import get_pretrained_model, create_attributes_model, AttributeFCN
 from ml_src.classifiers import predict_attributes
 from ml_src.utils import is_gpu_available
+from ml_src.classifiers import evaluate_model, test_models
 
 # Train and Validation Images
 TRAIN_IMAGES_FOLDER = "ml_src/data/ClothingAttributeDataset/train/"
@@ -29,29 +30,33 @@ use_gpu = is_gpu_available()
 target_dims = get_attribute_dims(label_values_file)
 label_values = load_label_values(label_values_file)
 
-pretrained_conv_model, alexnet_fc, fc_dim  = get_pretrained_model("alexnet", use_gpu=use_gpu)
-attribute_models = create_attributes_fc_model(alexnet_fc, pretrained_conv_model, fc_dim, 
-                                target_dims, "ml_src/weights/alexnet-fc/",
+pretrained_conv_model, _, _ = get_pretrained_model("vgg16", pop_last_pool_layer=True, use_gpu=use_gpu)
+target_dims = get_attribute_dims(label_values_file)
+attribute_models = create_attributes_model(AttributeFCN, 512, pretrained_conv_model,
+                                target_dims, 
+                                # dict(list(target_dims.items())[:3]),
+                                "ml_src/weights/vgg16-fcn-266-2/",
                                 labels_file, 
                                 TRAIN_IMAGES_FOLDER, 
                                 VALID_IMAGES_FOLDER, 
                                 num_epochs=1, 
-                                use_gpu=use_gpu,
-                                is_train=False)
+                                is_train=False,
+                                use_gpu=use_gpu)
 
+SELECT_FILES = np.random.permutation(glob("app/static/select-img/*.jpg"))
 
 class IndexHandler(tornado.web.RequestHandler):
     """APP is live"""
 
-    def _get_rand_images(self, n=4):
-        filepaths = np.random.permutation(glob("app/static/select-img/*.jpg"))[:n]
+    def _get_rand_images(self, n=8):
+        filepaths = SELECT_FILES[:n]
         return [filepath.split("/")[-1] for filepath in filepaths]
 
     def get(self):
         """Return Index Page"""
         select_images = self._get_rand_images()
         self.render("templates/index.html", image=None, image_url=None,
-            select_images=select_images, results=json.dumps(""), predictions_df=None)
+            select_images=select_images, predictions_df=None)
 
     def head(self):
         """Verify that App is live"""
@@ -89,24 +94,26 @@ class IndexHandler(tornado.web.RequestHandler):
             return self.redirect("/")
 
         print(image)
-        results = predict_attributes(image, pretrained_conv_model, attribute_models,
-                             attribute_idx_map=label_values["idx_to_names"],
-                            flatten_pretrained_out=True,
-                            use_gpu=use_gpu)
-        results = [{k: (v1, str(round(v2, 1)) + "%") for k, (v1, v2) in results.items()}]
-        df = pd.DataFrame(results[0]).T
-        df.columns = ["Prediction", "Probability"]
+        # results = predict_attributes(image, pretrained_conv_model, attribute_models,
+        #                     attribute_idx_map=label_values["idx_to_names"],
+        #                    flatten_pretrained_out=True,
+        #                    use_gpu=use_gpu)
+        #results = [{k: (v1, str(round(v2, 1)) + "%") for k, (v1, v2) in results.items()}]
+        #df = pd.DataFrame(results[0]).T
+        results = test_models(attribute_models, pretrained_conv_model, image,
+            attribute_idx_map=label_values["idx_to_names"])
+        df = pd.DataFrame(results).T
+        df.columns = ["Prediction", "Pred_Index", "Confidence"]
+        df["Confidence"] = df["Confidence"].astype(float)
         df.index = df.index.str.replace("_GT", "").str.capitalize()
         print(results)
-        print(json.dumps(results))
         select_images = self._get_rand_images()
         return self.render("templates/index.html",
             image=image_filename,
             image_location=image_location,
             image_url=image_url,
             select_images=select_images,
-            results=json.dumps(results),
-            predictions_df=df.to_html(classes="table table-striped"))
+            predictions_df=df[["Prediction", "Confidence"]].to_html(formatters={"Confidence": '{:,.2%}'.format },classes="table table-striped"))
 
 
 class PredictionHandler(BaseApiHandler):

@@ -9,12 +9,14 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
 import torch.nn.functional as F
+import torch.utils.data as data
+
 import torchvision
 
 try:
-    from ml_src.preprocessing import make_dsets, get_label_idx_to_name, image_loader
+    from ml_src.preprocessing import make_dsets, get_label_idx_to_name, image_loader, default_loader, get_transforms
 except ImportError:
-    from preprocessing import make_dsets, get_label_idx_to_name, image_loader
+    from preprocessing import make_dsets, get_label_idx_to_name, image_loader, default_loader, get_transforms
 
 
 def get_pretrained_model(arch="resnet18", pop_last_pool_layer=False, use_gpu=False):
@@ -66,16 +68,16 @@ class AttributeFCN(nn.Module):
         super().__init__()
         self.return_conv_layer = return_conv_layer
         model_steps = [
-            # nn.BatchNorm2d(in_channels),
+            nn.BatchNorm2d(in_channels),
             nn.Conv2d(in_channels, 256, 3, padding=1),
             nn.ReLU(),
-            # nn.BatchNorm2d(256),
-            # nn.Conv2d(256, 128, 3, padding=1),
-            # nn.ReLU(),
-            # nn.BatchNorm2d(128),
-            nn.Conv2d(256, 64, 3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.Conv2d(256, 128, 3, padding=1),
             nn.ReLU(),
-            # nn.BatchNorm2d(64),
+            nn.BatchNorm2d(128),
+            nn.Conv2d(128, 64, 3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(64),
             nn.Conv2d(64, out_dims, 1)
         ]
         model_steps_dummy = [
@@ -93,7 +95,7 @@ class AttributeFCN(nn.Module):
         average_pool = F.avg_pool2d(classes_conv_out, kernel_size=classes_conv_out.size()[2:])
         average_pool_flatten = average_pool.view(average_pool.size(0), -1)
         # print(average_pool_flatten)
-        classes_softmax = F.softmax(average_pool_flatten)
+        classes_softmax = F.log_softmax(average_pool_flatten)
         
         if self.return_conv_layer:
             return classes_conv_out, classes_softmax
@@ -103,7 +105,7 @@ class AttributeFCN(nn.Module):
 
 def train_attribute_model(model, pretrained_model, train_dset_loader,
                           valid_dset_loader=None,
-                          criterion=nn.NLLLoss(),  # nn.CrossEntropyLoss(),
+                          criterion=nn.CrossEntropyLoss(),
                           optim_scheduler=optim_scheduler_ft,
                           use_gpu=None,
                           num_epochs=25, 
@@ -137,6 +139,9 @@ def train_attribute_model(model, pretrained_model, train_dset_loader,
         for phase in phases:
             if phase == "train":
                 optimizer = optim_scheduler(model, epoch)
+                model.train()
+            else:
+                model.eval()
 
             running_loss = 0.0
             running_corrects = 0.0
@@ -145,18 +150,17 @@ def train_attribute_model(model, pretrained_model, train_dset_loader,
             dset_loader = valid_dset_loader if phase == "valid" else train_dset_loader
             for data in dset_loader:
                 # Get the inputs
-                inputs, labels = data
+                batch_files, inputs, labels = data
 
                 # Wrap them in Variable
                 if use_gpu:
-                    inputs, labels = Variable(inputs.cuda()), \
-                                             Variable(labels.cuda())
+                    inputs, labels = inputs.cuda(), labels.cuda()
+                if phase == "train":
+                    inputs = Variable(inputs)
                 else:
-                    inputs, labels = Variable(inputs), Variable(labels)
-
-                # Zero the parameter gradients
-                optimizer.zero_grad()
-
+                    inputs = Variable(inputs, volatile=True)
+                labels = Variable(labels)
+                
                 # Get output from pre-trained model and re-shape to Flatten
                 out_features = pretrained_model(inputs)
                 if flatten_pretrained_out:
@@ -164,11 +168,14 @@ def train_attribute_model(model, pretrained_model, train_dset_loader,
 
                 # Forward
                 outputs = model(out_features)
-                _, preds = torch.max(outputs.data, 1)
-                loss = criterion(outputs, labels)
+                # _, preds = torch.max(outputs.data, 1)
+                # loss = criterion(outputs, labels)
+                loss = F.nll_loss(outputs, labels)
+                preds = outputs.data.max(1)[1]
 
                 # Backward + Optimize only in Training Phase
                 if phase == "train":
+                    optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
 
@@ -180,7 +187,7 @@ def train_attribute_model(model, pretrained_model, train_dset_loader,
             epoch_acc = running_corrects / dset_sizes[phase]
             if verbose:
                 print("{} Loss: {:.4f} Acc: {:.4f}".format(phase, epoch_loss, epoch_acc))
-            elif epoch % 5 == 0:
+            elif epoch % 3 == 0:
                 print("{} Epoch {}/{} Loss: {:.4f} Acc: {:.4f}".format(phase, epoch, num_epochs - 1, epoch_loss, epoch_acc))
 
             # Deep copy the model
@@ -262,6 +269,128 @@ def predict_model(model, inputs, flatten=False):
     return outputs
 
 
+import torch.utils.data as data
+
+class AttributePredictDataset(data.Dataset):
+    
+    def __init__(self, image_url, transform=None, target_transform=None, loader=default_loader):
+
+        super().__init__()
+        
+        self.image_url = image_url
+        self.transform = transform
+        self.target_transform = target_transform
+        self.loader = loader
+        
+    def __getitem__(self, index):
+        img = self.loader(self.image_url)
+        target = 0
+        if self.transform is not None:
+            img = self.transform(img)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return self.image_url, img, target
+
+    def __len__(self):
+        return 1
+    
+def test_models(attribute_models, pretrained_model, image_url, attribute_idx_map=None, use_gpu=None):
+
+    if use_gpu is None:
+        use_gpu = torch.cuda.is_available()
+    
+    image_dset = AttributePredictDataset(image_url, transform=get_transforms(is_train=False))
+
+    dset_loader = data.DataLoader(image_dset, shuffle=False)
+
+    results = {}
+    for attrib_name, model in attribute_models.items():
+        model.eval()
+        for batch_idx, dset in enumerate(dset_loader):
+            # Get the inputs
+            batch_files, inputs, labels = dset
+            # Wrap them in Variable
+            if use_gpu:
+                inputs, labels = inputs.cuda(), labels.cuda()
+            inputs = Variable(inputs)
+            labels = Variable(labels)
+            # Get output from pre-trained model and re-shape to Flatten
+            out_features = pretrained_model(inputs)
+
+            # Forward
+            outputs = model(out_features)
+            loss = F.nll_loss(outputs, labels)
+            preds_proba, preds = outputs.data.max(1)
+            pred_idx = preds.cpu().numpy().flatten()[0]
+            pred_proba = np.exp(preds_proba.cpu().numpy().flatten()[0])
+            if attribute_idx_map:
+                pred_class = attribute_idx_map[attrib_name].get(pred_idx)
+                if pred_class:
+                    results[attrib_name] = {
+                        "pred_idx": pred_idx,
+                        "pred_prob": pred_proba,
+                        "pred_class": pred_class
+                    }
+    return results
+
+
+def evaluate_model(model, pretrained_model, target_column, labels_file, images_folder,
+                batch_size=32, 
+                num_workers=4, 
+                use_gpu=None,
+                flatten_pretrained_out=False):
+
+    if use_gpu is None:
+        use_gpu = torch.cuda.is_available()
+        
+    dset_loader = make_dsets(images_folder, labels_file, target_column,
+                            is_train=False, shuffle=False,
+                            batch_size=batch_size, 
+                            num_workers=num_workers)
+
+    running_loss, running_corrects = (0, 0)
+    y_true = []
+    y_pred = []
+    y_pred_proba = []
+    input_files = []
+    model.eval()
+    for batch_idx, data in enumerate(dset_loader):
+        # Get the inputs
+        batch_files, inputs, labels = data
+        y_true = np.concatenate([y_true, labels.numpy()])
+        input_files = np.concatenate([input_files, batch_files])
+        # Wrap them in Variable
+        if use_gpu:
+            inputs, labels = inputs.cuda(), labels.cuda()
+        inputs = Variable(inputs)
+        labels = Variable(labels)
+        # Get output from pre-trained model and re-shape to Flatten
+        out_features = pretrained_model(inputs)
+
+        if flatten_pretrained_out:
+            out_features = out_features.view(out_features.size(0), -1)
+
+        # Forward
+        outputs = model(out_features)
+        loss = F.nll_loss(outputs, labels)
+        preds_proba, preds = outputs.data.max(1)
+        y_pred = np.concatenate([y_pred, preds.cpu().numpy().flatten()])
+        y_pred_proba = np.concatenate([y_pred_proba, preds_proba.cpu().numpy().flatten()])
+
+        # Statistics
+        running_loss += loss.data[0]
+        running_corrects += torch.sum(preds == labels.data)
+
+    return {
+        "loss": running_loss,
+        "accuracy": running_corrects / len(y_true),
+        "input_files": input_files,
+        "y_true": y_true,
+        "y_pred": y_pred,
+        "y_pred_proba": y_pred_proba
+    }
+
 def predict_attributes(image_url, pretrained_model, attribute_models, attribute_idx_map=None, 
                        flatten_pretrained_out=True, use_gpu=None):
 
@@ -270,15 +399,20 @@ def predict_attributes(image_url, pretrained_model, attribute_models, attribute_
     
     image_features = image_loader(image_url, use_gpu=use_gpu)
 
+    print(image_features.size())
     pretrained_features = predict_model(pretrained_model, image_features, flatten=flatten_pretrained_out)
     results = {}
     for attrib_name, model in attribute_models.items():
-        print("Predicting {}".format(attrib_name))
+        print("Predicting {}".format(attrib_name))        
         outputs = predict_model(model, pretrained_features)
+        pred_prob, pred_class = outputs.data.max(1)        
         if use_gpu:
-            outputs_arr = outputs.data.cpu()
-        outputs_arr = outputs_arr.numpy()
-        pred_prob, pred_class = outputs_arr.max(), outputs_arr.argmax()
+            pred_prob = pred_prob.cpu()
+            pred_class = pred_class.cpu()
+        pred_prob = np.exp(pred_prob.numpy().flatten()[0])
+        pred_class = pred_class.numpy().flatten()[0]
+        # outputs_arr = outputs_arr.numpy()
+        # pred_prob, pred_class = outputs_arr.max(), outputs_arr.argmax()
         if attribute_idx_map:
             pred_class = attribute_idx_map[attrib_name].get(pred_class)
         if pred_class is not None:
@@ -333,7 +467,7 @@ def visualize_model(model, dset_loader, num_images=5, use_gpu=None):
         use_gpu = torch.cuda.is_available()
 
     for i, data in enumerate(dset_loader):
-        inputs, labels = data
+        batch_files, inputs, labels = data
         if use_gpu:
             inputs, labels = Variable(inputs.cuda()), Variable(labels.cuda())
         else:

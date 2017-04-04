@@ -156,7 +156,7 @@ class AttributeDataset(data.Dataset):
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        return img, target
+        return path, img, target
 
     def __len__(self):
         return len(self.imgs)
@@ -166,8 +166,8 @@ def get_transforms(is_train=False):
     if is_train:
         data_transforms = transforms.Compose([
             transforms.Scale(266),
-            # transforms.CenterCrop((400, 266)),
-            transforms.RandomSizedCrop(224),
+            transforms.CenterCrop((400, 266)),
+            # transforms.RandomSizedCrop(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -175,8 +175,8 @@ def get_transforms(is_train=False):
     else:
         data_transforms = transforms.Compose([
             transforms.Scale(266),
-            # transforms.CenterCrop((400, 266)),
-            transforms.CenterCrop(224),
+            transforms.CenterCrop((400, 266)),
+            # transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
@@ -198,16 +198,17 @@ def make_dsets(IMAGES_FOLDER, LABELS_FILE, target_column, batch_size=32, num_wor
     return dset_loader
 
 
-def image_loader(image_name, transforms=None, use_gpu=None):
+def image_loader(image_name, transforms=None, use_gpu=None, requires_grad=False):
     """load image, returns cuda tensor"""
     if transforms is None:
         transforms = get_transforms(is_train=False)
     if use_gpu is None:
         use_gpu = torch.cuda.is_available()
         
-    image = Image.open(image_name)
+    # image = Image.open(image_name)
+    image = default_loader(image_name)
     image = transforms(image)
-    image = Variable(image, requires_grad=True)
+    image = Variable(image, requires_grad=requires_grad)
     image = image.unsqueeze(0)  # Add a top level dimension for Batches
     if use_gpu:
         image = image.cuda()

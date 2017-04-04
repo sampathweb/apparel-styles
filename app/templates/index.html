@@ -80,10 +80,6 @@
     $(document).on('change', '.file', function(){
       $(this).parent().find('.form-control').val($(this).val().replace(/C:\\fakepath\\/i, ''));
     });
-  var results = {% raw results %};
-  if (results) {
-    document.getElementById("results").innerHTML = JSON.stringify(results, undefined, 2);
-  }
   $("#predict-submit").click(function() {
       document.getElementById('predict-form').submit();
   })
