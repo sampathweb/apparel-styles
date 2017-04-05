@@ -295,7 +295,9 @@ class AttributePredictDataset(data.Dataset):
     def __len__(self):
         return 1
     
-def test_models(attribute_models, pretrained_model, image_url, attribute_idx_map=None, use_gpu=None):
+def test_models(attribute_models, pretrained_model, image_url, 
+                attribute_idx_map=None, use_gpu=None,
+               return_last_conv_layer=False):
 
     if use_gpu is None:
         use_gpu = torch.cuda.is_available()
@@ -320,6 +322,8 @@ def test_models(attribute_models, pretrained_model, image_url, attribute_idx_map
 
             # Forward
             outputs = model(out_features)
+            if return_last_conv_layer:
+                conv_layer_out = model.conv_model(out_features)
             loss = F.nll_loss(outputs, labels)
             preds_proba, preds = outputs.data.max(1)
             pred_idx = preds.cpu().numpy().flatten()[0]
@@ -332,6 +336,8 @@ def test_models(attribute_models, pretrained_model, image_url, attribute_idx_map
                         "pred_prob": pred_proba,
                         "pred_class": pred_class
                     }
+                    if return_last_conv_layer:
+                        results[attrib_name]["conv_layer"] = conv_layer_out.data.cpu().numpy()[0, pred_idx]
     return results
 
 
