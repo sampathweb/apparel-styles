@@ -26,7 +26,7 @@ source ~/.bashrc
 ### Download App Source Code:
 
 ```
-git clone https://github.com/sampathweb/iris-api.git
+git clone https://github.com/sampathweb/insight-clothing-attributes.git
 
 
 cd iris-api-app
@@ -44,7 +44,7 @@ sudo vi /etc/supervisor/conf.d/iris-api.conf
 
 [program:iris-api]
 autorestart = true
-command = /home/ubuntu/iris-api/env/venv/bin/python /home/ubuntu/iris-api/run.py --debug=False --port=80
+command = /home/ubuntu/iris-api/env/venv/bin/python /home/ubuntu/insight-clothing-attributes/run-server.py --debug=False --port=80
 numprocs = 1
 startsecs = 10
 stderr_logfile = /var/log/supervisor/iris-api.log
@@ -60,13 +60,7 @@ sudo supervisorctl reload
 
 ### Test the App
 
-1. Open Browser:  `http://<AWS IP>` (App is Live!)
-
-2. Test in Command Line (Optional):
-
-```
-curl -i http://<aws ip address>/api/iris/predict -X POST -d '{ "sepal_length": 2, "sepal_width": 5, "petal_length": 3, "petal_width": 4}'
-```
+Open Browser:  `http://<AWS IP>` (App is Live!)
 
 Congratulations you have deployed your App
 

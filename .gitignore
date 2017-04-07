@@ -92,6 +92,7 @@ local/
 
 # Exclude data from source control by default
 data/*
+weights/*
 ml_src/data/ClothingAttributeDataset/
 ml_src/weights/
 app/static/temp-img/*

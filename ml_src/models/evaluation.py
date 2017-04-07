@@ -1,3 +1,0 @@
-
-
-def load_model()
