@@ -2,6 +2,8 @@
 
 Predict multiple attributes for a given apparel. This app was developed during Insight AI Fellowship in March'2017.  The app was developed using Python and uses PyTorch deep learning framework and Tordado web server.
 
+[Slides](http://sampathweb.com/apparel-styles/)
+
 ## Setup Environment on Local Machine
 
 ### Installation
@@ -34,3 +36,4 @@ H. Chen, A. Gallagher, B. Girod, "Describing Clothing by Semantic Attributes", E
 
 
 ### The End.
+=======
