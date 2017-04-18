@@ -26,10 +26,10 @@ source ~/.bashrc
 ### Download App Source Code:
 
 ```
-git clone https://github.com/sampathweb/insight-clothing-attributes.git
+git clone https://github.com/sampathweb/apparel-styles.git
 
 
-cd iris-api-app
+cd apparel-styles
 python env/create_env.py
 source activate env/venv
 python env/install_packages.py
@@ -39,28 +39,24 @@ python run.py (Confirm that App is running)
 
 
 sudo apt-get install supervisor
-sudo vi /etc/supervisor/conf.d/iris-api.conf
+sudo vi /etc/supervisor/conf.d/apparel-styles.conf
 <press i insert mode>
 
-[program:iris-api]
+[program:apparel-styles]
 autorestart = true
-command = /home/ubuntu/iris-api/env/venv/bin/python /home/ubuntu/insight-clothing-attributes/run-server.py --debug=False --port=80
+command = /home/ubuntu/apparel-styles/env/venv/bin/python /home/ubuntu/apparel-styles/run_server.py --debug=False --port=80
 numprocs = 1
 startsecs = 10
-stderr_logfile = /var/log/supervisor/iris-api.log
-stdout_logfile = /var/log/supervisor/iris-api.log
-environment = PYTHONPATH="/home/ubuntu/iris-api/env/bin/"
+stderr_logfile = /var/log/supervisor/apparel-styles.log
+stdout_logfile = /var/log/supervisor/apparel-styles.log
+environment = PYTHONPATH="/home/ubuntu/apparel-styles/env/bin/"
 
 <escape :wq>
 
 sudo supervisorctl reload
 
-<Your APP is live now>
 ```
 
 ### Test the App
 
 Open Browser:  `http://<AWS IP>` (App is Live!)
-
-Congratulations you have deployed your App
-
